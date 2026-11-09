@@ -1,0 +1,1819 @@
+# Altyazı Çevirmeni — Android uygulamasını otomatik derleyen dosya.
+# Bu dosyayı GitHub deponda .github/workflows/build.yml olarak kaydet.
+# Kaydettiğinde GitHub uygulamayı derler ve "Releases" bölümüne APK olarak koyar.
+name: APK Oluştur
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Java kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Gradle kur
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Proje dosyalarını oluştur
+        run: |
+          set -e
+          mkdir -p proje
+          cd proje
+          mkdir -p 'app'
+          cat > 'app/build.gradle.kts' <<'__SON__'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+
+          val buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
+
+          android {
+              namespace = "com.altyazi.cevirmen"
+              compileSdk = 35
+
+              defaultConfig {
+                  applicationId = "com.altyazi.cevirmen"
+                  minSdk = 24
+                  targetSdk = 35
+                  versionCode = buildNumber
+                  versionName = "1.0.$buildNumber"
+              }
+
+              signingConfigs {
+                  create("kendi") {
+                      storeFile = file("kendi-anahtar.jks")
+                      storePassword = "altyazi2026"
+                      keyAlias = "altyazi"
+                      keyPassword = "altyazi2026"
+                      storeType = "pkcs12"
+                  }
+              }
+
+              buildTypes {
+                  release {
+                      isMinifyEnabled = false
+                      signingConfig = signingConfigs.getByName("kendi")
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+              lint {
+                  abortOnError = false
+                  checkReleaseBuilds = false
+              }
+          }
+
+          dependencies {
+              implementation("androidx.core:core-ktx:1.13.1")
+              implementation("androidx.appcompat:appcompat:1.7.0")
+              implementation("com.google.android.material:material:1.12.0")
+              implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+              implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+              implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+
+              val camerax = "1.4.1"
+              implementation("androidx.camera:camera-core:$camerax")
+              implementation("androidx.camera:camera-camera2:$camerax")
+              implementation("androidx.camera:camera-lifecycle:$camerax")
+              implementation("androidx.camera:camera-view:$camerax")
+
+              implementation("com.google.mlkit:text-recognition:16.0.1")
+              implementation("com.google.mlkit:translate:17.0.3")
+          }
+          __SON__
+          mkdir -p 'app'
+          base64 -d > 'app/kendi-anahtar.jks' <<'__SON__'
+          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
+          N0gEFEO/DmBunmTWat9vBCjm89nHN6UwAgInEA==
+          __SON__
+          mkdir -p 'app/src/main'
+          cat > 'app/src/main/AndroidManifest.xml' <<'__SON__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <uses-feature android:name="android.hardware.camera.any" android:required="true" />
+
+              <uses-permission android:name="android.permission.CAMERA" />
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+              <queries>
+                  <intent>
+                      <action android:name="android.intent.action.TTS_SERVICE" />
+                  </intent>
+              </queries>
+
+              <application
+                  android:allowBackup="true"
+                  android:icon="@drawable/ic_launcher"
+                  android:roundIcon="@drawable/ic_launcher"
+                  android:label="@string/app_name"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.Altyazi">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="sensorLandscape"
+                      android:configChanges="keyboard|keyboardHidden|screenSize|smallestScreenSize|screenLayout|orientation|uiMode">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          __SON__
+          mkdir -p 'app/src/main/java/com/altyazi/cevirmen'
+          cat > 'app/src/main/java/com/altyazi/cevirmen/MainActivity.kt' <<'__SON__'
+          package com.altyazi.cevirmen
+
+          import android.Manifest
+          import android.content.pm.PackageManager
+          import android.graphics.Bitmap
+          import android.graphics.Canvas
+          import android.graphics.ColorMatrix
+          import android.graphics.ColorMatrixColorFilter
+          import android.graphics.Matrix
+          import android.graphics.Paint
+          import android.graphics.RectF
+          import android.hardware.display.DisplayManager
+          import android.os.Bundle
+          import android.os.SystemClock
+          import android.util.Size
+          import android.view.MotionEvent
+          import android.view.Surface
+          import android.view.View
+          import android.view.WindowManager
+          import android.widget.ImageView
+          import android.widget.SeekBar
+          import android.widget.TextView
+          import androidx.activity.result.contract.ActivityResultContracts
+          import androidx.appcompat.app.AppCompatActivity
+          import androidx.camera.core.Camera
+          import androidx.camera.core.CameraSelector
+          import androidx.camera.core.FocusMeteringAction
+          import androidx.camera.core.ImageAnalysis
+          import androidx.camera.core.ImageProxy
+          import androidx.camera.core.Preview
+          import androidx.camera.core.resolutionselector.AspectRatioStrategy
+          import androidx.camera.core.resolutionselector.ResolutionSelector
+          import androidx.camera.core.resolutionselector.ResolutionStrategy
+          import androidx.camera.lifecycle.ProcessCameraProvider
+          import androidx.camera.view.PreviewView
+          import androidx.core.content.ContextCompat
+          import androidx.core.view.WindowCompat
+          import androidx.core.view.WindowInsetsCompat
+          import androidx.core.view.WindowInsetsControllerCompat
+          import androidx.lifecycle.lifecycleScope
+          import com.google.android.material.button.MaterialButton
+          import com.google.mlkit.vision.common.InputImage
+          import com.google.mlkit.vision.text.Text
+          import com.google.mlkit.vision.text.TextRecognition
+          import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+          import kotlinx.coroutines.launch
+          import java.util.concurrent.ExecutorService
+          import java.util.concurrent.Executors
+          import java.util.concurrent.TimeUnit
+          import kotlin.math.min
+
+          class MainActivity : AppCompatActivity() {
+
+              private lateinit var prefs: Prefs
+              private lateinit var translator: TranslationService
+              private lateinit var speaker: Speaker
+              private lateinit var tracker: SubtitleTracker
+
+              private lateinit var previewView: PreviewView
+              private lateinit var overlay: RegionOverlayView
+              private lateinit var statusText: TextView
+              private lateinit var translatedText: TextView
+              private lateinit var originalText: TextView
+              private lateinit var cropPreview: ImageView
+              private lateinit var zoomBar: SeekBar
+              private lateinit var exposureBar: SeekBar
+              private lateinit var btnRegion: MaterialButton
+              private lateinit var btnPause: MaterialButton
+              private lateinit var btnSettings: MaterialButton
+
+              private lateinit var analysisExecutor: ExecutorService
+              private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+
+              private var camera: Camera? = null
+              private var previewUseCase: Preview? = null
+              private var analysisUseCase: ImageAnalysis? = null
+
+              @Volatile private var paused = false
+              @Volatile private var busy = false
+              @Volatile private var lastAnalysisAt = 0L
+              @Volatile private var regionNorm = RectF(RegionOverlayView.DEFAULT_REGION)
+              @Volatile private var overlayW = 0
+              @Volatile private var overlayH = 0
+              @Volatile private var enhance = true
+
+              private var requestCounter = 0
+              private var shownCounter = 0
+              private var waitingSince = 0L
+
+              private val permissionLauncher =
+                  registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                      if (granted) startCamera()
+                      else setStatus("Kamera izni olmadan çalışamam. Uygulama ayarlarından kamera iznini aç.")
+                  }
+
+              private val displayListener = object : DisplayManager.DisplayListener {
+                  override fun onDisplayAdded(displayId: Int) {}
+                  override fun onDisplayRemoved(displayId: Int) {}
+                  override fun onDisplayChanged(displayId: Int) {
+                      val rotation = currentRotation()
+                      previewUseCase?.targetRotation = rotation
+                      analysisUseCase?.targetRotation = rotation
+                  }
+              }
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                  setContentView(R.layout.activity_main)
+                  hideSystemBars()
+
+                  prefs = Prefs(this)
+                  translator = TranslationService(prefs)
+                  tracker = SubtitleTracker(prefs.stability)
+                  speaker = Speaker(this) { msg -> setStatus(msg) }
+
+                  previewView = findViewById(R.id.previewView)
+                  overlay = findViewById(R.id.overlay)
+                  statusText = findViewById(R.id.statusText)
+                  translatedText = findViewById(R.id.translatedText)
+                  originalText = findViewById(R.id.originalText)
+                  cropPreview = findViewById(R.id.cropPreview)
+                  zoomBar = findViewById(R.id.zoomBar)
+                  exposureBar = findViewById(R.id.exposureBar)
+                  btnRegion = findViewById(R.id.btnRegion)
+                  btnPause = findViewById(R.id.btnPause)
+                  btnSettings = findViewById(R.id.btnSettings)
+
+                  previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
+                  previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+
+                  val saved = prefs.region
+                  if (saved != null) regionNorm = RectF(saved)
+                  overlay.region = regionNorm
+                  overlay.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                      overlayW = v.width
+                      overlayH = v.height
+                  }
+                  overlay.onRegionChanged = { r ->
+                      regionNorm = RectF(r)
+                      prefs.region = r
+                      tracker.reset()
+                      focusOnRegion()
+                  }
+
+                  btnRegion.setOnClickListener {
+                      overlay.editing = !overlay.editing
+                      btnRegion.text = if (overlay.editing) "Tamam" else "Alan seç"
+                      if (overlay.editing) setStatus("Altyazının çıktığı bölgeyi parmağınla çiz, sonra 'Tamam'a dokun.")
+                  }
+                  btnPause.setOnClickListener { togglePause() }
+                  btnSettings.setOnClickListener {
+                      SettingsDialog.show(this, prefs, translator, speaker) {
+                          applySettings()
+                          tracker.reset()
+                          setStatus("Ayarlar kaydedildi · " + TranslationService.labelFor(prefs.engine))
+                      }
+                  }
+
+                  previewView.setOnTouchListener { v, e ->
+                      if (e.actionMasked == MotionEvent.ACTION_UP) {
+                          focusAt(e.x, e.y)
+                          v.performClick()
+                      }
+                      true
+                  }
+
+                  analysisExecutor = Executors.newSingleThreadExecutor()
+                  applySettings()
+
+                  if (saved == null) {
+                      translatedText.text = "Telefonu TV'ye çevir, sonra 'Alan seç' ile altyazının çıktığı bölgeyi çiz."
+                  }
+
+                  // İnternet kesilirse yedek olsun diye, Wi-Fi varsa çevrimdışı paketi sessizce indir.
+                  lifecycleScope.launch {
+                      try {
+                          translator.downloadModel(wifiOnly = true)
+                      } catch (ignored: Exception) {
+                      }
+                  }
+
+                  if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                      startCamera()
+                  } else {
+                      permissionLauncher.launch(Manifest.permission.CAMERA)
+                  }
+              }
+
+              override fun onStart() {
+                  super.onStart()
+                  (getSystemService(DISPLAY_SERVICE) as DisplayManager).registerDisplayListener(displayListener, null)
+              }
+
+              override fun onStop() {
+                  (getSystemService(DISPLAY_SERVICE) as DisplayManager).unregisterDisplayListener(displayListener)
+                  super.onStop()
+              }
+
+              override fun onWindowFocusChanged(hasFocus: Boolean) {
+                  super.onWindowFocusChanged(hasFocus)
+                  if (hasFocus) hideSystemBars()
+              }
+
+              override fun onDestroy() {
+                  super.onDestroy()
+                  speaker.shutdown()
+                  recognizer.close()
+                  translator.close()
+                  analysisExecutor.shutdown()
+              }
+
+              private fun hideSystemBars() {
+                  WindowCompat.setDecorFitsSystemWindows(window, false)
+                  WindowInsetsControllerCompat(window, window.decorView).apply {
+                      hide(WindowInsetsCompat.Type.systemBars())
+                      systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                  }
+              }
+
+              @Suppress("DEPRECATION")
+              private fun currentRotation(): Int = windowManager.defaultDisplay?.rotation ?: Surface.ROTATION_90
+
+              private fun applySettings() {
+                  tracker.requiredStable = prefs.stability
+                  enhance = prefs.enhance
+                  originalText.visibility = if (prefs.showOriginal) View.VISIBLE else View.GONE
+              }
+
+              private fun togglePause() {
+                  paused = !paused
+                  btnPause.text = if (paused) "Devam" else "Duraklat"
+                  if (paused) {
+                      speaker.stop()
+                      setStatus("Duraklatıldı")
+                  } else {
+                      tracker.reset()
+                      setStatus("Altyazı bekleniyor…")
+                  }
+              }
+
+              private fun setStatus(msg: String) {
+                  statusText.text = msg
+              }
+
+              // ---------------- Kamera ----------------
+
+              private fun startCamera() {
+                  val future = ProcessCameraProvider.getInstance(this)
+                  future.addListener({
+                      val provider = try {
+                          future.get()
+                      } catch (e: Exception) {
+                          setStatus("Kamera açılamadı: ${e.message}")
+                          return@addListener
+                      }
+                      val rotation = currentRotation()
+                      val aspect = AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
+
+                      val preview = Preview.Builder()
+                          .setResolutionSelector(ResolutionSelector.Builder().setAspectRatioStrategy(aspect).build())
+                          .setTargetRotation(rotation)
+                          .build()
+                      preview.setSurfaceProvider(previewView.surfaceProvider)
+
+                      val analysis = ImageAnalysis.Builder()
+                          .setResolutionSelector(
+                              ResolutionSelector.Builder()
+                                  .setAspectRatioStrategy(aspect)
+                                  .setResolutionStrategy(
+                                      ResolutionStrategy(
+                                          Size(1920, 1080),
+                                          ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER
+                                      )
+                                  )
+                                  .build()
+                          )
+                          .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                          .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+                          .setTargetRotation(rotation)
+                          .build()
+                      analysis.setAnalyzer(analysisExecutor) { proxy -> analyze(proxy) }
+
+                      try {
+                          provider.unbindAll()
+                          camera = provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+                          previewUseCase = preview
+                          analysisUseCase = analysis
+                          setupCameraControls()
+                          setStatus("Altyazı bekleniyor… · " + TranslationService.labelFor(prefs.engine))
+                          previewView.post { focusOnRegion() }
+                      } catch (e: Exception) {
+                          setStatus("Kamera başlatılamadı: ${e.message}")
+                      }
+                  }, ContextCompat.getMainExecutor(this))
+              }
+
+              private fun setupCameraControls() {
+                  val cam = camera ?: return
+
+                  zoomBar.progress = (prefs.zoom * 100f).toInt()
+                  cam.cameraControl.setLinearZoom(prefs.zoom)
+                  zoomBar.onProgress { p, fromUser ->
+                      if (fromUser) {
+                          val z = p / 100f
+                          cam.cameraControl.setLinearZoom(z)
+                          prefs.zoom = z
+                      }
+                  }
+
+                  val exposure = cam.cameraInfo.exposureState
+                  if (!exposure.isExposureCompensationSupported) {
+                      exposureBar.isEnabled = false
+                      return
+                  }
+                  val range = exposure.exposureCompensationRange
+                  exposureBar.max = range.upper - range.lower
+                  val start = prefs.exposure.coerceIn(range.lower, range.upper)
+                  exposureBar.progress = start - range.lower
+                  cam.cameraControl.setExposureCompensationIndex(start)
+                  exposureBar.onProgress { p, fromUser ->
+                      if (fromUser) {
+                          val v = p + range.lower
+                          cam.cameraControl.setExposureCompensationIndex(v)
+                          prefs.exposure = v
+                      }
+                  }
+              }
+
+              private fun focusAt(x: Float, y: Float) {
+                  val cam = camera ?: return
+                  if (previewView.width == 0) return
+                  val point = previewView.meteringPointFactory.createPoint(x, y)
+                  val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE)
+                      .setAutoCancelDuration(6, TimeUnit.SECONDS)
+                      .build()
+                  try {
+                      cam.cameraControl.startFocusAndMetering(action)
+                  } catch (ignored: Exception) {
+                  }
+              }
+
+              /** Netlemeyi altyazı alanının ortasına yapar. */
+              private fun focusOnRegion() {
+                  val r = regionNorm
+                  focusAt(r.centerX() * previewView.width, r.centerY() * previewView.height)
+              }
+
+              // ---------------- Okuma (OCR) ----------------
+
+              private fun analyze(proxy: ImageProxy) {
+                  val now = SystemClock.elapsedRealtime()
+                  if (paused || busy || now - lastAnalysisAt < ANALYSIS_INTERVAL_MS) {
+                      proxy.close()
+                      return
+                  }
+                  lastAnalysisAt = now
+                  busy = true
+
+                  val crop: Bitmap?
+                  try {
+                      val full = proxy.toBitmap()
+                      val rotation = proxy.imageInfo.rotationDegrees
+                      val upright = if (rotation != 0) {
+                          Bitmap.createBitmap(full, 0, 0, full.width, full.height, Matrix().apply { postRotate(rotation.toFloat()) }, true)
+                      } else {
+                          full
+                      }
+                      crop = cropToRegion(upright)
+                  } catch (e: Exception) {
+                      busy = false
+                      return
+                  } finally {
+                      proxy.close()
+                  }
+
+                  if (crop == null) {
+                      busy = false
+                      return
+                  }
+
+                  runOnUiThread { cropPreview.setImageBitmap(crop) }
+
+                  recognizer.process(InputImage.fromBitmap(crop, 0))
+                      .addOnSuccessListener { result -> onTextRecognized(result) }
+                      .addOnCompleteListener { busy = false }
+              }
+
+              /**
+               * Ekrandaki altyazı alanını kamera görüntüsündeki piksellere çevirip keser.
+               * PreviewView FIT_CENTER kullandığı için görüntü ekrana ortalanmış ve oranı korunmuş durumda.
+               */
+              private fun cropToRegion(bmp: Bitmap): Bitmap? {
+                  val vw = overlayW.toFloat()
+                  val vh = overlayH.toFloat()
+                  if (vw <= 0f || vh <= 0f) return null
+                  val scale = min(vw / bmp.width, vh / bmp.height)
+                  val offX = (vw - bmp.width * scale) / 2f
+                  val offY = (vh - bmp.height * scale) / 2f
+                  val r = regionNorm
+
+                  val left = ((r.left * vw - offX) / scale).toInt().coerceIn(0, bmp.width - 1)
+                  val top = ((r.top * vh - offY) / scale).toInt().coerceIn(0, bmp.height - 1)
+                  val right = ((r.right * vw - offX) / scale).toInt().coerceIn(left + 1, bmp.width)
+                  val bottom = ((r.bottom * vh - offY) / scale).toInt().coerceIn(top + 1, bmp.height)
+                  if (right - left < 24 || bottom - top < 12) return null
+
+                  var out = Bitmap.createBitmap(bmp, left, top, right - left, bottom - top)
+
+                  // Küçük yazılar için büyüt: ML Kit harf başına ~16 piksel ister.
+                  if (out.height < TARGET_CROP_HEIGHT) {
+                      val f = min(3f, TARGET_CROP_HEIGHT.toFloat() / out.height)
+                      out = Bitmap.createScaledBitmap(out, (out.width * f).toInt(), (out.height * f).toInt(), true)
+                  }
+                  if (enhance) out = enhanceContrast(out)
+                  return out
+              }
+
+              private fun enhanceContrast(src: Bitmap): Bitmap {
+                  val cm = ColorMatrix().apply { setSaturation(0f) }
+                  val c = 1.4f
+                  val t = (-0.5f * c + 0.5f) * 255f
+                  cm.postConcat(
+                      ColorMatrix(
+                          floatArrayOf(
+                              c, 0f, 0f, 0f, t,
+                              0f, c, 0f, 0f, t,
+                              0f, 0f, c, 0f, t,
+                              0f, 0f, 0f, 1f, 0f
+                          )
+                      )
+                  )
+                  val out = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+                  val paint = Paint(Paint.FILTER_BITMAP_FLAG).apply { colorFilter = ColorMatrixColorFilter(cm) }
+                  Canvas(out).drawBitmap(src, 0f, 0f, paint)
+                  return out
+              }
+
+              private fun onTextRecognized(result: Text) {
+                  if (paused) return
+                  val lines = result.textBlocks
+                      .flatMap { it.lines }
+                      .sortedWith(compareBy({ it.boundingBox?.top ?: 0 }, { it.boundingBox?.left ?: 0 }))
+                      .map { it.text }
+                  val text = TextCleaner.clean(lines)
+
+                  val now = SystemClock.elapsedRealtime()
+                  if (text.isEmpty()) {
+                      if (waitingSince == 0L) waitingSince = now
+                      if (now - waitingSince > 1500 && requestCounter == shownCounter) {
+                          setStatus("Altyazı bekleniyor… · " + TranslationService.labelFor(prefs.engine))
+                      }
+                  } else {
+                      waitingSince = 0L
+                  }
+
+                  val subtitle = tracker.offer(text) ?: return
+                  handleSubtitle(subtitle)
+              }
+
+              // ---------------- Çeviri + ses ----------------
+
+              private fun handleSubtitle(english: String) {
+                  val id = ++requestCounter
+                  setStatus("Çevriliyor…")
+                  lifecycleScope.launch {
+                      try {
+                          val result = translator.translate(english)
+                          // Daha yeni bir altyazı zaten gösterildiyse eskisini atla.
+                          if (id < shownCounter) return@launch
+                          if (prefs.readLatestOnly && id != requestCounter) return@launch
+                          shownCounter = id
+                          translatedText.text = result.text
+                          originalText.text = english
+                          setStatus("✓ " + result.source)
+                          if (prefs.speak && !paused) {
+                              speaker.speak(result.text, prefs.speechRate, prefs.readLatestOnly)
+                          }
+                      } catch (e: Exception) {
+                          if (id == requestCounter) shownCounter = id
+                          originalText.text = english
+                          setStatus("Çeviri yapılamadı: " + (e.message ?: "bağlantı hatası") + " · Ayarlardan 'Cihaz içi'yi deneyebilirsin.")
+                      }
+                  }
+              }
+
+              companion object {
+                  private const val ANALYSIS_INTERVAL_MS = 330L
+                  private const val TARGET_CROP_HEIGHT = 200
+              }
+          }
+          __SON__
+          mkdir -p 'app/src/main/java/com/altyazi/cevirmen'
+          cat > 'app/src/main/java/com/altyazi/cevirmen/Prefs.kt' <<'__SON__'
+          package com.altyazi.cevirmen
+
+          import android.content.Context
+          import android.graphics.RectF
+
+          /** Kullanıcı ayarlarını telefonda saklar. */
+          class Prefs(context: Context) {
+              private val sp = context.getSharedPreferences("ayarlar", Context.MODE_PRIVATE)
+
+              var engine: String
+                  get() = sp.getString("engine", ENGINE_GOOGLE) ?: ENGINE_GOOGLE
+                  set(v) = sp.edit().putString("engine", v).apply()
+
+              var deeplKey: String
+                  get() = sp.getString("deepl_key", "") ?: ""
+                  set(v) = sp.edit().putString("deepl_key", v.trim()).apply()
+
+              var speak: Boolean
+                  get() = sp.getBoolean("speak", true)
+                  set(v) = sp.edit().putBoolean("speak", v).apply()
+
+              var speechRate: Float
+                  get() = sp.getFloat("speech_rate", 1.15f)
+                  set(v) = sp.edit().putFloat("speech_rate", v).apply()
+
+              /** true: hep en yeni altyazıyı oku (eskiyi keser). false: sırayla oku. */
+              var readLatestOnly: Boolean
+                  get() = sp.getBoolean("latest_only", true)
+                  set(v) = sp.edit().putBoolean("latest_only", v).apply()
+
+              /** Bir altyazının çevrilmeden önce kaç kez aynı okunması gerektiği (1-3). */
+              var stability: Int
+                  get() = sp.getInt("stability", 2)
+                  set(v) = sp.edit().putInt("stability", v.coerceIn(1, 3)).apply()
+
+              var showOriginal: Boolean
+                  get() = sp.getBoolean("show_original", true)
+                  set(v) = sp.edit().putBoolean("show_original", v).apply()
+
+              var enhance: Boolean
+                  get() = sp.getBoolean("enhance", true)
+                  set(v) = sp.edit().putBoolean("enhance", v).apply()
+
+              var zoom: Float
+                  get() = sp.getFloat("zoom", 0f)
+                  set(v) = sp.edit().putFloat("zoom", v).apply()
+
+              var exposure: Int
+                  get() = sp.getInt("exposure", 0)
+                  set(v) = sp.edit().putInt("exposure", v).apply()
+
+              /** Altyazı alanı, ekrana göre 0..1 aralığında. Hiç seçilmediyse null. */
+              var region: RectF?
+                  get() {
+                      if (!sp.contains("r_l")) return null
+                      return RectF(
+                          sp.getFloat("r_l", 0f), sp.getFloat("r_t", 0f),
+                          sp.getFloat("r_r", 1f), sp.getFloat("r_b", 1f)
+                      )
+                  }
+                  set(v) {
+                      if (v == null) {
+                          sp.edit().remove("r_l").remove("r_t").remove("r_r").remove("r_b").apply()
+                      } else {
+                          sp.edit().putFloat("r_l", v.left).putFloat("r_t", v.top)
+                              .putFloat("r_r", v.right).putFloat("r_b", v.bottom).apply()
+                      }
+                  }
+
+              companion object {
+                  const val ENGINE_GOOGLE = "google"
+                  const val ENGINE_OFFLINE = "offline"
+                  const val ENGINE_DEEPL = "deepl"
+              }
+          }
+          __SON__
+          mkdir -p 'app/src/main/java/com/altyazi/cevirmen'
+          cat > 'app/src/main/java/com/altyazi/cevirmen/RegionOverlayView.kt' <<'__SON__'
+          package com.altyazi.cevirmen
+
+          import android.content.Context
+          import android.graphics.Canvas
+          import android.graphics.Color
+          import android.graphics.DashPathEffect
+          import android.graphics.Paint
+          import android.graphics.RectF
+          import android.util.AttributeSet
+          import android.view.MotionEvent
+          import android.view.View
+          import kotlin.math.abs
+          import kotlin.math.max
+          import kotlin.math.min
+
+          /**
+           * Kamera görüntüsünün üstünde altyazı alanını gösterir.
+           * "Alan seç" modunda parmakla yeni bir dikdörtgen çizilir.
+           */
+          class RegionOverlayView @JvmOverloads constructor(
+              context: Context,
+              attrs: AttributeSet? = null
+          ) : View(context, attrs) {
+
+              /** Ekrana göre 0..1 aralığında alan. */
+              var region: RectF = RectF(DEFAULT_REGION)
+                  set(value) {
+                      field = RectF(value)
+                      invalidate()
+                  }
+
+              var editing = false
+                  set(value) {
+                      field = value
+                      invalidate()
+                  }
+
+              var onRegionChanged: ((RectF) -> Unit)? = null
+
+              private val density = resources.displayMetrics.density
+              private val amber = Color.rgb(0xFF, 0xC9, 0x4A)
+
+              private val dimPaint = Paint().apply { color = Color.argb(115, 0, 0, 0) }
+              private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                  style = Paint.Style.STROKE
+                  strokeWidth = 2.5f * density
+                  color = amber
+              }
+              private val handlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = amber }
+              private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                  color = Color.WHITE
+                  textSize = 13f * density
+                  setShadowLayer(4f, 0f, 1f, Color.BLACK)
+              }
+              private val dash = DashPathEffect(floatArrayOf(12f * density, 7f * density), 0f)
+
+              private var startX = 0f
+              private var startY = 0f
+
+              private fun toPx(r: RectF) = RectF(r.left * width, r.top * height, r.right * width, r.bottom * height)
+
+              override fun onDraw(canvas: Canvas) {
+                  super.onDraw(canvas)
+                  if (width == 0 || height == 0) return
+                  val r = toPx(region)
+                  val w = width.toFloat()
+                  val h = height.toFloat()
+
+                  canvas.drawRect(0f, 0f, w, r.top, dimPaint)
+                  canvas.drawRect(0f, r.bottom, w, h, dimPaint)
+                  canvas.drawRect(0f, r.top, r.left, r.bottom, dimPaint)
+                  canvas.drawRect(r.right, r.top, w, r.bottom, dimPaint)
+
+                  borderPaint.pathEffect = if (editing) dash else null
+                  canvas.drawRect(r, borderPaint)
+
+                  if (editing) {
+                      val hr = 6f * density
+                      canvas.drawCircle(r.left, r.top, hr, handlePaint)
+                      canvas.drawCircle(r.right, r.top, hr, handlePaint)
+                      canvas.drawCircle(r.left, r.bottom, hr, handlePaint)
+                      canvas.drawCircle(r.right, r.bottom, hr, handlePaint)
+                  }
+
+                  val label = if (editing) "Altyazının çıktığı bölgeyi parmağınla çiz" else "Altyazı alanı"
+                  val y = if (r.top - 8f * density > 18f * density) r.top - 8f * density else r.bottom + 18f * density
+                  canvas.drawText(label, r.left + 4f * density, y, labelPaint)
+              }
+
+              override fun onTouchEvent(event: MotionEvent): Boolean {
+                  if (!editing) return false
+                  when (event.actionMasked) {
+                      MotionEvent.ACTION_DOWN -> {
+                          startX = event.x
+                          startY = event.y
+                      }
+                      MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> {
+                          val x = event.x.coerceIn(0f, width.toFloat())
+                          val y = event.y.coerceIn(0f, height.toFloat())
+                          if (abs(x - startX) > 30f * density && abs(y - startY) > 14f * density) {
+                              region = RectF(
+                                  min(startX, x) / width, min(startY, y) / height,
+                                  max(startX, x) / width, max(startY, y) / height
+                              )
+                          }
+                          if (event.actionMasked == MotionEvent.ACTION_UP) {
+                              performClick()
+                              onRegionChanged?.invoke(RectF(region))
+                          }
+                      }
+                  }
+                  return true
+              }
+
+              override fun performClick(): Boolean {
+                  super.performClick()
+                  return true
+              }
+
+              companion object {
+                  val DEFAULT_REGION = RectF(0.12f, 0.60f, 0.88f, 0.80f)
+              }
+          }
+          __SON__
+          mkdir -p 'app/src/main/java/com/altyazi/cevirmen'
+          cat > 'app/src/main/java/com/altyazi/cevirmen/SettingsDialog.kt' <<'__SON__'
+          package com.altyazi.cevirmen
+
+          import android.content.ActivityNotFoundException
+          import android.content.Intent
+          import android.graphics.Typeface
+          import android.speech.tts.TextToSpeech
+          import android.text.InputType
+          import android.view.View
+          import android.widget.Button
+          import android.widget.EditText
+          import android.widget.LinearLayout
+          import android.widget.RadioButton
+          import android.widget.RadioGroup
+          import android.widget.ScrollView
+          import android.widget.SeekBar
+          import android.widget.TextView
+          import android.widget.Toast
+          import androidx.appcompat.app.AlertDialog
+          import androidx.appcompat.app.AppCompatActivity
+          import androidx.appcompat.widget.SwitchCompat
+          import androidx.lifecycle.lifecycleScope
+          import kotlinx.coroutines.launch
+          import java.util.Locale
+
+          /** Ayarlar penceresi (kodla oluşturulur). */
+          object SettingsDialog {
+
+              fun show(
+                  activity: AppCompatActivity,
+                  prefs: Prefs,
+                  translator: TranslationService,
+                  speaker: Speaker,
+                  onSaved: () -> Unit
+              ) {
+                  val dp = activity.resources.displayMetrics.density
+                  fun px(v: Int) = (v * dp).toInt()
+
+                  val root = LinearLayout(activity).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(px(22), px(4), px(22), px(12))
+                  }
+
+                  fun header(t: String) = TextView(activity).apply {
+                      text = t
+                      textSize = 15f
+                      setTypeface(typeface, Typeface.BOLD)
+                      setPadding(0, px(18), 0, px(4))
+                      root.addView(this)
+                  }
+
+                  fun note(t: String) = TextView(activity).apply {
+                      text = t
+                      textSize = 12f
+                      alpha = 0.75f
+                      setPadding(0, px(2), 0, px(6))
+                      root.addView(this)
+                  }
+
+                  fun radio(group: RadioGroup, label: String) = RadioButton(activity).apply {
+                      id = View.generateViewId()
+                      text = label
+                      group.addView(this)
+                  }
+
+                  fun switch(label: String, checked: Boolean) = SwitchCompat(activity).apply {
+                      text = label
+                      isChecked = checked
+                      setPadding(0, px(6), 0, px(6))
+                      root.addView(this)
+                  }
+
+                  // --- Çeviri motoru ---
+                  header("Çeviri motoru")
+                  val engineGroup = RadioGroup(activity)
+                  val rbGoogle = radio(engineGroup, "Google · çevrimiçi, hızlı (önerilen)")
+                  val rbOffline = radio(engineGroup, "Cihaz içi · internetsiz")
+                  val rbDeepl = radio(engineGroup, "DeepL · en doğal çeviri (API anahtarı gerekir)")
+                  root.addView(engineGroup)
+                  engineGroup.check(
+                      when (prefs.engine) {
+                          Prefs.ENGINE_OFFLINE -> rbOffline.id
+                          Prefs.ENGINE_DEEPL -> rbDeepl.id
+                          else -> rbGoogle.id
+                      }
+                  )
+
+                  val keyField = EditText(activity).apply {
+                      hint = "DeepL API anahtarı (yalnızca DeepL için)"
+                      setText(prefs.deeplKey)
+                      isSingleLine = true
+                      inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                      textSize = 14f
+                  }
+                  root.addView(keyField)
+                  note("DeepL anahtarını deepl.com sitesinden 'DeepL API Free' ile ücretsiz alabilirsin (ayda 500.000 karakter).")
+
+                  val dlBtn = Button(activity).apply { text = "Cihaz içi çeviri paketini indir (~30 MB)" }
+                  root.addView(dlBtn)
+                  note("İnternet kesilirse uygulama bu pakete otomatik geçer. Wi-Fi'deyken bir kez indirmen yeterli.")
+                  activity.lifecycleScope.launch {
+                      if (translator.isModelDownloaded()) {
+                          dlBtn.text = "Cihaz içi paket hazır ✓"
+                          dlBtn.isEnabled = false
+                      }
+                  }
+                  dlBtn.setOnClickListener {
+                      dlBtn.isEnabled = false
+                      dlBtn.text = "İndiriliyor…"
+                      activity.lifecycleScope.launch {
+                          try {
+                              translator.downloadModel(wifiOnly = false)
+                              dlBtn.text = "Cihaz içi paket hazır ✓"
+                          } catch (e: Exception) {
+                              dlBtn.text = "İndirilemedi · tekrar dene"
+                              dlBtn.isEnabled = true
+                          }
+                      }
+                  }
+
+                  // --- Sesli okuma ---
+                  header("Sesli okuma")
+                  val speakSw = switch("Çeviriyi sesli oku", prefs.speak)
+
+                  val rateLabel = TextView(activity).apply { setPadding(0, px(6), 0, 0) }
+                  root.addView(rateLabel)
+                  val rateBar = SeekBar(activity).apply {
+                      max = 150 // 0.50x … 2.00x
+                      progress = ((prefs.speechRate * 100f).toInt() - 50).coerceIn(0, 150)
+                  }
+                  root.addView(rateBar)
+                  fun currentRate() = (rateBar.progress + 50) / 100f
+                  fun updateRateLabel() {
+                      rateLabel.text = String.format(Locale.US, "Konuşma hızı: %.2fx", currentRate())
+                  }
+                  updateRateLabel()
+                  rateBar.onProgress { _, _ -> updateRateLabel() }
+
+                  val modeGroup = RadioGroup(activity)
+                  val rbLatest = radio(modeGroup, "Hep en yeni altyazıyı oku (önerilen, geride kalmaz)")
+                  val rbQueue = radio(modeGroup, "Tüm altyazıları sırayla oku (hiçbiri atlanmaz)")
+                  root.addView(modeGroup)
+                  modeGroup.check(if (prefs.readLatestOnly) rbLatest.id else rbQueue.id)
+
+                  val testBtn = Button(activity).apply { text = "Sesi dene" }
+                  root.addView(testBtn)
+                  testBtn.setOnClickListener {
+                      if (speaker.ready) {
+                          speaker.speak("Merhaba. Oyundaki altyazılar bu sesle okunacak.", currentRate(), true)
+                      } else {
+                          Toast.makeText(activity, "Türkçe ses hazır değil.", Toast.LENGTH_SHORT).show()
+                      }
+                  }
+                  if (speaker.missingTurkish || !speaker.ready) {
+                      val installBtn = Button(activity).apply { text = "Türkçe ses paketini yükle" }
+                      root.addView(installBtn)
+                      installBtn.setOnClickListener {
+                          try {
+                              activity.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA))
+                          } catch (e: ActivityNotFoundException) {
+                              Toast.makeText(activity, "Telefon ayarlarında 'Metin okuma' bölümünden Türkçe sesi indir.", Toast.LENGTH_LONG).show()
+                          }
+                      }
+                  }
+                  note("Kulaklık ya da Bluetooth hoparlör bağlarsan ses oradan gelir; oyun sesiyle karışmaz.")
+
+                  // --- Okuma ---
+                  header("Altyazı okuma")
+                  val stabGroup = RadioGroup(activity)
+                  val rbFast = radio(stabGroup, "Hızlı tepki")
+                  val rbBalanced = radio(stabGroup, "Dengeli (önerilen)")
+                  val rbSteady = radio(stabGroup, "Kararlı · görüntü titriyorsa ya da yanlış okuyorsa")
+                  root.addView(stabGroup)
+                  stabGroup.check(
+                      when (prefs.stability) {
+                          1 -> rbFast.id
+                          3 -> rbSteady.id
+                          else -> rbBalanced.id
+                      }
+                  )
+                  val originalSw = switch("İngilizce orijinal metni de göster", prefs.showOriginal)
+                  val enhanceSw = switch("Görüntü iyileştirme (siyah-beyaz, yüksek kontrast)", prefs.enhance)
+                  note(
+                      "İpuçları: Telefonu sabitle, 'Yakınlaştır' ile altyazıyı büyüt, " +
+                          "'Parlaklık'ı yazılar parlamayacak kadar düşür. Sol alttaki 'Okunan alan' " +
+                          "kutusunda yazıyı net görüyorsan okuma doğru çalışır."
+                  )
+
+                  val scroll = ScrollView(activity).apply { addView(root) }
+
+                  AlertDialog.Builder(activity)
+                      .setTitle("Ayarlar")
+                      .setView(scroll)
+                      .setPositiveButton("Kaydet") { _, _ ->
+                          prefs.engine = when (engineGroup.checkedRadioButtonId) {
+                              rbOffline.id -> Prefs.ENGINE_OFFLINE
+                              rbDeepl.id -> Prefs.ENGINE_DEEPL
+                              else -> Prefs.ENGINE_GOOGLE
+                          }
+                          prefs.deeplKey = keyField.text.toString()
+                          prefs.speak = speakSw.isChecked
+                          prefs.speechRate = currentRate()
+                          prefs.readLatestOnly = modeGroup.checkedRadioButtonId != rbQueue.id
+                          prefs.stability = when (stabGroup.checkedRadioButtonId) {
+                              rbFast.id -> 1
+                              rbSteady.id -> 3
+                              else -> 2
+                          }
+                          prefs.showOriginal = originalSw.isChecked
+                          prefs.enhance = enhanceSw.isChecked
+                          if (prefs.engine == Prefs.ENGINE_DEEPL && prefs.deeplKey.isBlank()) {
+                              Toast.makeText(activity, "DeepL için anahtar girmen gerekiyor.", Toast.LENGTH_LONG).show()
+                          }
+                          onSaved()
+                      }
+                      .setNegativeButton("Vazgeç", null)
+                      .show()
+              }
+          }
+          __SON__
+          mkdir -p 'app/src/main/java/com/altyazi/cevirmen'
+          cat > 'app/src/main/java/com/altyazi/cevirmen/Speaker.kt' <<'__SON__'
+          package com.altyazi.cevirmen
+
+          import android.content.Context
+          import android.media.AudioAttributes
+          import android.speech.tts.TextToSpeech
+          import java.util.Locale
+
+          /** Telefonun kendi Türkçe sesiyle çeviriyi okur. */
+          class Speaker(context: Context, private val onProblem: (String) -> Unit) : TextToSpeech.OnInitListener {
+
+              var ready = false
+                  private set
+              var missingTurkish = false
+                  private set
+
+              // Alanlardan SONRA oluşturulur ki onInit erken gelirse değerler ezilmesin.
+              private val tts = TextToSpeech(context.applicationContext, this)
+
+              override fun onInit(status: Int) {
+                  if (status != TextToSpeech.SUCCESS) {
+                      onProblem("Sesli okuma başlatılamadı. Telefonda bir metin okuma motoru (ör. Google Konuşma Hizmetleri) olmalı.")
+                      return
+                  }
+                  tts.setAudioAttributes(
+                      AudioAttributes.Builder()
+                          .setUsage(AudioAttributes.USAGE_MEDIA)
+                          .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                          .build()
+                  )
+                  val r = tts.setLanguage(Locale("tr", "TR"))
+                  if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+                      missingTurkish = true
+                      onProblem("Telefonda Türkçe ses yok. Ayarlar → 'Türkçe ses paketini yükle'.")
+                  } else {
+                      ready = true
+                  }
+              }
+
+              fun speak(text: String, rate: Float, interrupt: Boolean) {
+                  if (!ready || text.isBlank()) return
+                  tts.setSpeechRate(rate)
+                  tts.speak(
+                      text,
+                      if (interrupt) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD,
+                      null,
+                      "altyazi-" + System.nanoTime()
+                  )
+              }
+
+              fun stop() {
+                  tts.stop()
+              }
+
+              fun shutdown() {
+                  tts.stop()
+                  tts.shutdown()
+              }
+          }
+          __SON__
+          mkdir -p 'app/src/main/java/com/altyazi/cevirmen'
+          cat > 'app/src/main/java/com/altyazi/cevirmen/SubtitleTracker.kt' <<'__SON__'
+          package com.altyazi.cevirmen
+
+          /**
+           * Kameradan gelen OCR sonuçlarını izler ve yalnızca YENİ ve KARARLI bir altyazı
+           * belirdiğinde metni döndürür. Böylece aynı cümle tekrar tekrar çevrilip okunmaz,
+           * harf harf beliren ya da titreyen altyazılar yarım çevrilmez.
+           */
+          class SubtitleTracker(var requiredStable: Int = 2) {
+              private var candidateNorm = ""
+              private var candidateRaw = ""
+              private var stableCount = 0
+              private var lastHandledNorm = ""
+              private var emptyCount = 0
+
+              /** Yeni ve kararlı bir altyazı varsa onu döndürür, yoksa null. */
+              fun offer(raw: String): String? {
+                  val norm = normalize(raw)
+                  if (norm.length < MIN_LETTERS) {
+                      emptyCount++
+                      // Ekranda bir süre altyazı yoksa, aynı cümle tekrar gelirse yeniden okunabilsin.
+                      if (emptyCount >= EMPTY_FRAMES_TO_RESET) {
+                          lastHandledNorm = ""
+                          candidateNorm = ""
+                          candidateRaw = ""
+                          stableCount = 0
+                      }
+                      return null
+                  }
+                  emptyCount = 0
+
+                  if (candidateNorm.isNotEmpty() && (norm == candidateNorm || similarity(norm, candidateNorm) >= SAME_FRAME_SIMILARITY)) {
+                      stableCount++
+                      // OCR küçük farklar verebilir; en uzun (genelde en eksiksiz) okumayı tut.
+                      if (norm.length >= candidateNorm.length) {
+                          candidateNorm = norm
+                          candidateRaw = raw
+                      }
+                  } else {
+                      candidateNorm = norm
+                      candidateRaw = raw
+                      stableCount = 1
+                  }
+
+                  if (stableCount >= requiredStable) {
+                      val alreadyHandled = lastHandledNorm.isNotEmpty() &&
+                          similarity(candidateNorm, lastHandledNorm) >= SAME_SUBTITLE_SIMILARITY
+                      if (!alreadyHandled) {
+                          lastHandledNorm = candidateNorm
+                          return candidateRaw
+                      }
+                  }
+                  return null
+              }
+
+              fun reset() {
+                  candidateNorm = ""
+                  candidateRaw = ""
+                  stableCount = 0
+                  lastHandledNorm = ""
+                  emptyCount = 0
+              }
+
+              companion object {
+                  const val MIN_LETTERS = 3
+                  const val EMPTY_FRAMES_TO_RESET = 3
+                  const val SAME_FRAME_SIMILARITY = 0.9
+                  const val SAME_SUBTITLE_SIMILARITY = 0.85
+
+                  fun normalize(s: String): String =
+                      s.lowercase().filter { it.isLetterOrDigit() }
+
+                  /** 0..1 arası benzerlik (Levenshtein mesafesine göre). */
+                  fun similarity(a: String, b: String): Double {
+                      if (a == b) return 1.0
+                      if (a.isEmpty() || b.isEmpty()) return 0.0
+                      val maxLen = maxOf(a.length, b.length)
+                      // Uzunluk farkı çok büyükse hesaplamaya gerek yok.
+                      if (kotlin.math.abs(a.length - b.length).toDouble() / maxLen > 0.5) return 0.0
+                      var prev = IntArray(b.length + 1) { it }
+                      var cur = IntArray(b.length + 1)
+                      for (i in 1..a.length) {
+                          cur[0] = i
+                          for (j in 1..b.length) {
+                              val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+                              cur[j] = minOf(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
+                          }
+                          val t = prev; prev = cur; cur = t
+                      }
+                      return 1.0 - prev[b.length].toDouble() / maxLen
+                  }
+              }
+          }
+          __SON__
+          mkdir -p 'app/src/main/java/com/altyazi/cevirmen'
+          cat > 'app/src/main/java/com/altyazi/cevirmen/TextCleaner.kt' <<'__SON__'
+          package com.altyazi.cevirmen
+
+          /** OCR'dan gelen ham metni çeviriye hazır hale getirir. */
+          object TextCleaner {
+              private val multiSpace = Regex("\\s+")
+              private val lonePipe = Regex("(?<=^|\\s)[|](?=\\s|$)")
+              private val leadingDash = Regex("^[-–—]\\s*")
+              private val junk = Regex("[^\\p{L}\\p{N}\\s.,!?'\"’‘“”:;()\\-–—…%&]")
+
+              /** Satırları (yukarıdan aşağı) birleştirir ve temizler. Uygun değilse boş döner. */
+              fun clean(lines: List<String>): String {
+                  val joined = lines
+                      .map { it.trim() }
+                      .filter { it.isNotEmpty() }
+                      .joinToString(" ") { line ->
+                          // Diyalog satırlarındaki baştaki "- " işaretini kaldır.
+                          leadingDash.replace(line, "")
+                      }
+                  var text = lonePipe.replace(joined, "I")
+                  text = junk.replace(text, " ")
+                  text = multiSpace.replace(text, " ").trim()
+
+                  val letters = text.count { it.isLetter() }
+                  if (letters < 3) return ""
+                  // Harf oranı çok düşükse büyük ihtimalle altyazı değil, gürültüdür.
+                  val nonSpace = text.count { !it.isWhitespace() }
+                  if (nonSpace > 0 && letters.toDouble() / nonSpace < 0.55) return ""
+                  return text
+              }
+          }
+          __SON__
+          mkdir -p 'app/src/main/java/com/altyazi/cevirmen'
+          cat > 'app/src/main/java/com/altyazi/cevirmen/TranslationService.kt' <<'__SON__'
+          package com.altyazi.cevirmen
+
+          import com.google.mlkit.common.model.DownloadConditions
+          import com.google.mlkit.common.model.RemoteModelManager
+          import com.google.mlkit.nl.translate.TranslateLanguage
+          import com.google.mlkit.nl.translate.TranslateRemoteModel
+          import com.google.mlkit.nl.translate.Translation
+          import com.google.mlkit.nl.translate.Translator
+          import com.google.mlkit.nl.translate.TranslatorOptions
+          import kotlinx.coroutines.Dispatchers
+          import kotlinx.coroutines.tasks.await
+          import kotlinx.coroutines.withContext
+          import org.json.JSONArray
+          import org.json.JSONObject
+          import java.io.IOException
+          import java.net.HttpURLConnection
+          import java.net.URL
+          import java.net.URLEncoder
+
+          data class Translated(val text: String, val source: String)
+
+          /**
+           * İngilizce → Türkçe çeviri.
+           * - Google: çevrimiçi, hızlı ve isabetli (varsayılan).
+           * - Cihaz içi: internetsiz çalışır (ML Kit), kalite biraz daha düşük.
+           * - DeepL: en doğal çeviri, ücretsiz API anahtarı gerekir.
+           * Çevrimiçi motor hata verirse, paket inmişse otomatik olarak cihaz içine geçer.
+           */
+          class TranslationService(private val prefs: Prefs) {
+
+              private val cache = object : LinkedHashMap<String, String>(64, 0.75f, true) {
+                  override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > 400
+              }
+
+              private val offline: Translator = Translation.getClient(
+                  TranslatorOptions.Builder()
+                      .setSourceLanguage(TranslateLanguage.ENGLISH)
+                      .setTargetLanguage(TranslateLanguage.TURKISH)
+                      .build()
+              )
+
+              @Volatile
+              private var offlineReady = false
+
+              suspend fun translate(text: String): Translated {
+                  val engine = prefs.engine
+                  val key = "$engine|$text"
+                  synchronized(cache) { cache[key] }?.let { return Translated(it, labelFor(engine)) }
+
+                  val result = when (engine) {
+                      Prefs.ENGINE_OFFLINE -> {
+                          downloadModel(wifiOnly = false)
+                          Translated(offlineTranslate(text), labelFor(engine))
+                      }
+                      Prefs.ENGINE_DEEPL -> try {
+                          Translated(deepl(text), labelFor(engine))
+                      } catch (e: Exception) {
+                          fallback(text, e)
+                      }
+                      else -> try {
+                          Translated(google(text), labelFor(engine))
+                      } catch (e: Exception) {
+                          fallback(text, e)
+                      }
+                  }
+                  synchronized(cache) { cache[key] = result.text }
+                  return result
+              }
+
+              private suspend fun fallback(text: String, error: Exception): Translated {
+                  if (isModelDownloaded()) {
+                      return Translated(offlineTranslate(text), "Cihaz içi (yedek)")
+                  }
+                  throw error
+              }
+
+              private suspend fun google(text: String): String = withContext(Dispatchers.IO) {
+                  val url = URL(
+                      "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=" +
+                          URLEncoder.encode(text, "UTF-8")
+                  )
+                  val c = url.openConnection() as HttpURLConnection
+                  c.connectTimeout = 4000
+                  c.readTimeout = 6000
+                  c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android) AltyaziCevirmeni")
+                  try {
+                      val code = c.responseCode
+                      if (code != 200) throw IOException("Google çeviri yanıt vermedi (kod $code)")
+                      val body = c.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                      val parts = JSONArray(body).getJSONArray(0)
+                      val sb = StringBuilder()
+                      for (i in 0 until parts.length()) {
+                          val seg = parts.optJSONArray(i) ?: continue
+                          if (seg.isNull(0)) continue
+                          sb.append(seg.getString(0))
+                      }
+                      val out = sb.toString().trim()
+                      if (out.isEmpty()) throw IOException("Boş çeviri geldi")
+                      out
+                  } finally {
+                      c.disconnect()
+                  }
+              }
+
+              private suspend fun deepl(text: String): String = withContext(Dispatchers.IO) {
+                  val authKey = prefs.deeplKey
+                  if (authKey.isBlank()) throw IOException("DeepL anahtarı girilmemiş (Ayarlar)")
+                  val host = if (authKey.endsWith(":fx")) "api-free.deepl.com" else "api.deepl.com"
+                  val c = URL("https://$host/v2/translate").openConnection() as HttpURLConnection
+                  c.connectTimeout = 4000
+                  c.readTimeout = 6000
+                  c.requestMethod = "POST"
+                  c.doOutput = true
+                  c.setRequestProperty("Authorization", "DeepL-Auth-Key $authKey")
+                  c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
+                  try {
+                      val form = "text=" + URLEncoder.encode(text, "UTF-8") + "&source_lang=EN&target_lang=TR"
+                      c.outputStream.use { it.write(form.toByteArray(Charsets.UTF_8)) }
+                      val code = c.responseCode
+                      if (code == 403) throw IOException("DeepL anahtarı geçersiz")
+                      if (code == 456) throw IOException("DeepL aylık ücretsiz kotası doldu")
+                      if (code != 200) throw IOException("DeepL yanıt vermedi (kod $code)")
+                      val body = c.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                      JSONObject(body).getJSONArray("translations").getJSONObject(0).getString("text").trim()
+                  } finally {
+                      c.disconnect()
+                  }
+              }
+
+              private suspend fun offlineTranslate(text: String): String = offline.translate(text).await()
+
+              /** Cihaz içi çeviri paketini indirir (~30 MB). Zaten varsa hemen döner. */
+              suspend fun downloadModel(wifiOnly: Boolean) {
+                  if (offlineReady) return
+                  val conditions = DownloadConditions.Builder().apply { if (wifiOnly) requireWifi() }.build()
+                  offline.downloadModelIfNeeded(conditions).await()
+                  offlineReady = true
+              }
+
+              suspend fun isModelDownloaded(): Boolean {
+                  if (offlineReady) return true
+                  return try {
+                      val model = TranslateRemoteModel.Builder(TranslateLanguage.TURKISH).build()
+                      val ok = RemoteModelManager.getInstance().isModelDownloaded(model).await()
+                      if (ok) offlineReady = true
+                      ok
+                  } catch (e: Exception) {
+                      false
+                  }
+              }
+
+              fun close() {
+                  offline.close()
+              }
+
+              companion object {
+                  fun labelFor(engine: String) = when (engine) {
+                      Prefs.ENGINE_OFFLINE -> "Cihaz içi"
+                      Prefs.ENGINE_DEEPL -> "DeepL"
+                      else -> "Google"
+                  }
+              }
+          }
+          __SON__
+          mkdir -p 'app/src/main/java/com/altyazi/cevirmen'
+          cat > 'app/src/main/java/com/altyazi/cevirmen/Util.kt' <<'__SON__'
+          package com.altyazi.cevirmen
+
+          import android.widget.SeekBar
+
+          fun SeekBar.onProgress(block: (progress: Int, fromUser: Boolean) -> Unit) {
+              setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                  override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) = block(progress, fromUser)
+                  override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                  override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+              })
+          }
+          __SON__
+          mkdir -p 'app/src/main/res/drawable-anydpi-v26'
+          cat > 'app/src/main/res/drawable-anydpi-v26/ic_launcher.xml' <<'__SON__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/icon_bg" />
+              <foreground android:drawable="@drawable/ic_launcher_foreground" />
+          </adaptive-icon>
+          __SON__
+          mkdir -p 'app/src/main/res/drawable'
+          cat > 'app/src/main/res/drawable/crop_bg.xml' <<'__SON__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+              <solid android:color="#26FFFFFF" />
+              <stroke android:width="1dp" android:color="#66FFC94A" />
+              <corners android:radius="4dp" />
+          </shape>
+          __SON__
+          mkdir -p 'app/src/main/res/drawable'
+          cat > 'app/src/main/res/drawable/ic_launcher.xml' <<'__SON__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="48dp"
+              android:height="48dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path android:fillColor="@color/icon_bg" android:pathData="M8,8h92v92h-92z" />
+              <path
+                  android:fillColor="#00000000"
+                  android:strokeColor="#FFFFFFFF"
+                  android:strokeWidth="4"
+                  android:pathData="M26,30h56v44h-56z" />
+              <path android:fillColor="@color/amber" android:pathData="M33,52h42v8h-42z" />
+              <path android:fillColor="@color/amber" android:pathData="M40,63h28v6h-28z" />
+              <path android:fillColor="#FFFFFFFF" android:pathData="M46,80h16v4h-16z" />
+          </vector>
+          __SON__
+          mkdir -p 'app/src/main/res/drawable'
+          cat > 'app/src/main/res/drawable/ic_launcher_foreground.xml' <<'__SON__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#00000000"
+                  android:strokeColor="#FFFFFFFF"
+                  android:strokeWidth="4"
+                  android:pathData="M28,32h52v40h-52z" />
+              <path android:fillColor="@color/amber" android:pathData="M34,52h40v7h-40z" />
+              <path android:fillColor="@color/amber" android:pathData="M41,62h26v6h-26z" />
+              <path android:fillColor="#FFFFFFFF" android:pathData="M47,77h14v4h-14z" />
+          </vector>
+          __SON__
+          mkdir -p 'app/src/main/res/drawable'
+          cat > 'app/src/main/res/drawable/panel_bottom.xml' <<'__SON__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+              <gradient
+                  android:angle="90"
+                  android:startColor="#EB0E1016"
+                  android:endColor="#990E1016" />
+          </shape>
+          __SON__
+          mkdir -p 'app/src/main/res/drawable'
+          cat > 'app/src/main/res/drawable/panel_top.xml' <<'__SON__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+              <gradient
+                  android:angle="270"
+                  android:startColor="#EB0E1016"
+                  android:endColor="#B30E1016" />
+          </shape>
+          __SON__
+          mkdir -p 'app/src/main/res/layout'
+          cat > 'app/src/main/res/layout/activity_main.xml' <<'__SON__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="@android:color/black">
+
+              <androidx.camera.view.PreviewView
+                  android:id="@+id/previewView"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent" />
+
+              <com.altyazi.cevirmen.RegionOverlayView
+                  android:id="@+id/overlay"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent" />
+
+              <!-- Üst panel: Türkçe çeviri -->
+              <LinearLayout
+                  android:id="@+id/topPanel"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:layout_gravity="top"
+                  android:background="@drawable/panel_top"
+                  android:orientation="vertical"
+                  android:paddingStart="24dp"
+                  android:paddingTop="10dp"
+                  android:paddingEnd="24dp"
+                  android:paddingBottom="12dp">
+
+                  <TextView
+                      android:id="@+id/statusText"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:letterSpacing="0.04"
+                      android:text="Hazırlanıyor…"
+                      android:textColor="@color/amber"
+                      android:textSize="12sp" />
+
+                  <TextView
+                      android:id="@+id/translatedText"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="4dp"
+                      android:ellipsize="end"
+                      android:lineSpacingExtra="2sp"
+                      android:maxLines="4"
+                      android:textColor="@android:color/white"
+                      android:textSize="22sp"
+                      android:textStyle="bold" />
+
+                  <TextView
+                      android:id="@+id/originalText"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="4dp"
+                      android:ellipsize="end"
+                      android:maxLines="2"
+                      android:textColor="@color/text_soft"
+                      android:textSize="13sp" />
+              </LinearLayout>
+
+              <!-- Alt çubuk: kontroller -->
+              <LinearLayout
+                  android:id="@+id/bottomBar"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:layout_gravity="bottom"
+                  android:background="@drawable/panel_bottom"
+                  android:gravity="center_vertical"
+                  android:orientation="horizontal"
+                  android:paddingStart="16dp"
+                  android:paddingTop="6dp"
+                  android:paddingEnd="16dp"
+                  android:paddingBottom="6dp">
+
+                  <LinearLayout
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:orientation="vertical">
+
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="Okunan alan"
+                          android:textColor="@color/text_soft"
+                          android:textSize="10sp" />
+
+                      <ImageView
+                          android:id="@+id/cropPreview"
+                          android:layout_width="120dp"
+                          android:layout_height="36dp"
+                          android:background="@drawable/crop_bg"
+                          android:contentDescription="Uygulamanın okuduğu alan"
+                          android:padding="2dp"
+                          android:scaleType="fitCenter" />
+                  </LinearLayout>
+
+                  <LinearLayout
+                      android:layout_width="0dp"
+                      android:layout_height="wrap_content"
+                      android:layout_marginStart="12dp"
+                      android:layout_weight="1"
+                      android:orientation="vertical">
+
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="Yakınlaştır"
+                          android:textColor="@color/text_soft"
+                          android:textSize="10sp" />
+
+                      <SeekBar
+                          android:id="@+id/zoomBar"
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:max="100" />
+                  </LinearLayout>
+
+                  <LinearLayout
+                      android:layout_width="0dp"
+                      android:layout_height="wrap_content"
+                      android:layout_weight="1"
+                      android:orientation="vertical">
+
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="Parlaklık"
+                          android:textColor="@color/text_soft"
+                          android:textSize="10sp" />
+
+                      <SeekBar
+                          android:id="@+id/exposureBar"
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content" />
+                  </LinearLayout>
+
+                  <com.google.android.material.button.MaterialButton
+                      android:id="@+id/btnRegion"
+                      style="@style/Widget.Material3.Button"
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginStart="8dp"
+                      android:minWidth="0dp"
+                      android:paddingStart="14dp"
+                      android:paddingEnd="14dp"
+                      android:text="Alan seç" />
+
+                  <com.google.android.material.button.MaterialButton
+                      android:id="@+id/btnPause"
+                      style="@style/Widget.Material3.Button.OutlinedButton"
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginStart="6dp"
+                      android:minWidth="0dp"
+                      android:paddingStart="14dp"
+                      android:paddingEnd="14dp"
+                      android:text="Duraklat"
+                      android:textColor="@android:color/white" />
+
+                  <com.google.android.material.button.MaterialButton
+                      android:id="@+id/btnSettings"
+                      style="@style/Widget.Material3.Button.OutlinedButton"
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginStart="6dp"
+                      android:minWidth="0dp"
+                      android:paddingStart="14dp"
+                      android:paddingEnd="14dp"
+                      android:text="Ayarlar"
+                      android:textColor="@android:color/white" />
+              </LinearLayout>
+          </FrameLayout>
+          __SON__
+          mkdir -p 'app/src/main/res/values'
+          cat > 'app/src/main/res/values/colors.xml' <<'__SON__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="amber">#FFFFC94A</color>
+              <color name="on_amber">#FF241A00</color>
+              <color name="ink">#FF12141A</color>
+              <color name="text_soft">#C7FFFFFF</color>
+              <color name="icon_bg">#FF1B2030</color>
+          </resources>
+          __SON__
+          mkdir -p 'app/src/main/res/values'
+          cat > 'app/src/main/res/values/strings.xml' <<'__SON__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">Altyazı Çevirmeni</string>
+          </resources>
+          __SON__
+          mkdir -p 'app/src/main/res/values'
+          cat > 'app/src/main/res/values/themes.xml' <<'__SON__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="Theme.Altyazi" parent="Theme.Material3.Dark.NoActionBar">
+                  <item name="colorPrimary">@color/amber</item>
+                  <item name="colorOnPrimary">@color/on_amber</item>
+                  <item name="colorSecondary">@color/amber</item>
+                  <item name="android:windowBackground">@android:color/black</item>
+                  <item name="android:statusBarColor">@android:color/black</item>
+                  <item name="android:navigationBarColor">@android:color/black</item>
+              </style>
+          </resources>
+          __SON__
+          cat > 'build.gradle.kts' <<'__SON__'
+          plugins {
+              id("com.android.application") version "8.7.3" apply false
+              id("org.jetbrains.kotlin.android") version "2.0.21" apply false
+          }
+          __SON__
+          cat > 'gradle.properties' <<'__SON__'
+          org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          kotlin.code.style=official
+          __SON__
+          cat > 'settings.gradle.kts' <<'__SON__'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "AltyaziCevirmeni"
+          include(":app")
+          __SON__
+          echo 'Dosyalar hazır:'
+          find . -type f | sort
+
+      - name: Uygulamayı derle
+        working-directory: proje
+        run: gradle assembleRelease --no-daemon --stacktrace
+
+      - name: APK'yı hazırla
+        run: |
+          mkdir -p cikti
+          cp proje/app/build/outputs/apk/release/app-release.apk cikti/AltyaziCevirmeni.apk
+          ls -la cikti
+
+      - name: APK'yı Releases bölümüne koy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="surum-${{ github.run_number }}"
+          gh release create "$TAG" cikti/AltyaziCevirmeni.apk \
+            --repo "${{ github.repository }}" \
+            --title "Altyazı Çevirmeni $TAG" \
+            --notes "Telefonuna kurmak için aşağıdaki AltyaziCevirmeni.apk dosyasına dokun." \
+          || gh release upload "$TAG" cikti/AltyaziCevirmeni.apk --clobber --repo "${{ github.repository }}"
+
+      - name: Yedek olarak sakla
+        uses: actions/upload-artifact@v4
+        with:
+          name: AltyaziCevirmeni-apk
+          path: cikti/AltyaziCevirmeni.apk
